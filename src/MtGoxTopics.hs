@@ -63,5 +63,5 @@ updateTopic m get set = do
       if oldTopic==new
         then B.putStrLn "topic is not changed"
         else do set new
-                B.putStrLn "changed topic to: "
+                B.putStr "changed topic to: "
                 B.putStrLn new
