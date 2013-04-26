@@ -35,6 +35,7 @@ minute = 60000000
 loop act last = do
   act
   now <- getMicroSeconds
-  when (target > now) $ threadDelay $ fromInteger $ target-now
+  -- Sleep at least 10 seconds even if we are late
+  threadDelay $ max 10000000 $ fromInteger $ target-now
   loop act target
   where target = last + (interval*minute)
