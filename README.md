@@ -21,6 +21,18 @@ program. But it has some little
 [software transactional memory](http://www.haskell.org/haskellwiki/Software_transactional_memory)
 (STM) tricks, which may be useful outside of this program, too.
 
+## License
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+See LICENSE file for more information.
+
+If you want to use parts of my work but you are using incompatible
+license, just ask me a permission.
+
 ## Installing
 
 Really? If you really want to, I have bad news for you. There is no Cabal file.
