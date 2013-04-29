@@ -12,6 +12,7 @@ import Data.Text.Encoding (encodeUtf8)
 import Network.Curl.Aeson
 import Text.Regex.PCRE.Light
 import qualified Data.ByteString.Char8 as B
+import Wappuradio -- Temporary
 
 panicThreshold = 0.1 -- Ten percent change triggers panic
 
@@ -19,8 +20,9 @@ ircTopic :: (Integer -> Integer -> IO Integer) -> IO ByteString
 ircTopic m = do
   (low,high,last,now) <- curlAesonGetWith p
                          "http://data.mtgox.com/api/1/BTCEUR/ticker"
+  wappu <- nytSoi
   old <- m now last
-  return $ encodeUtf8 $ T.concat ["BTC: ", low,"–",high,"€", mayPanic old last]
+  return $ encodeUtf8 $ T.concat ["BTC: ", low,"–",high,"€", mayPanic old last," ",wappu,"."]
   where 
     p (Object o) = do
       low  <- pure o..."return"..."low"..."value_int"
@@ -44,7 +46,7 @@ splitOldTopic s = case matches of
   _ -> Nothing
   where
     matches = match re s []
-    re = compile "(.*)BTC: .*?[\\.!](.*)" [anchored]
+    re = compile "(.*)BTC: .*?[\\.!].*?\\.(.*)" [anchored]
 
 -- | Updates topic with MtGox data by fetching old topic with @get@
 -- and writing new topic with @set@. If topic has no slot for data, do
