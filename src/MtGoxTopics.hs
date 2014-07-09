@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module MtGoxTopics where
+module MtGoxTopics (mtGoxPart) where
 
 import Control.Applicative
 import Control.Monad
@@ -7,22 +7,34 @@ import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Network.Curl.Aeson
 import Text.Regex.PCRE.Light
 import qualified Data.ByteString.Char8 as B
-import Wappuradio -- Temporary
+import TemporalCache
+import TopicPart
 
-panicThreshold = 0.1 -- Ten percent change triggers panic
+panicThreshold  = 0.1 -- Ten percent change triggers panic
+panicWindow     = 60  -- Compare panic condition to one hour old data
+intervalMinutes = 3   -- Number of minutes between updates
 
-ircTopic :: (Integer -> Integer -> IO Integer) -> IO ByteString
-ircTopic m = do
+
+mtGoxPart :: IO TopicPart
+mtGoxPart = do
+  m <- newEmptyAgingMap $ panicWindow * minute
+  return $ TopicPart { tag = "BTC: "
+                     , update = mtGoxTopic m
+                     , interval = intervalMinutes * minute
+                     }
+
+mtGoxTopic :: (Integer -> Integer -> IO Integer) -> IO Text
+mtGoxTopic m = do
   (low,high,last,now) <- curlAesonGetWith p
                          "http://data.mtgox.com/api/1/BTCEUR/ticker"
-  wappu <- nytSoi
   old <- m now last
-  return $ encodeUtf8 $ T.concat ["BTC: ", low,"–",high,"€", mayPanic old last," ",wappu,"."]
+  return $ T.concat [low,"–",high,"€", mayPanic old last," "]
   where 
     p (Object o) = do
       low  <- pure o..."return"..."low"..."value_int"
@@ -38,32 +50,3 @@ ircTopic m = do
         (True,True)  -> T.concat [", raketoi, ",numBsInt last 1e5," € nyt!"]
         (True,False) -> T.concat [", syöksyy, ",numBsInt last 1e5," € nyt!"]
         _ -> ", vakaa."
-
--- | Splits topic to pieces in which you may put the BTC course inside.
-splitOldTopic :: ByteString -> Maybe (ByteString, ByteString)
-splitOldTopic s = case matches of
-  Just [_,start,end] -> Just (start,end)
-  _ -> Nothing
-  where
-    matches = match re s []
-    re = compile "(.*)BTC: .*?[\\.!].*?\\.(.*)" [anchored]
-
--- | Updates topic with MtGox data by fetching old topic with @get@
--- and writing new topic with @set@. If topic has no slot for data, do
--- not run any HTTP action.
-updateTopic :: (Integer -> Integer -> IO Integer)
-               -> IO ByteString 
-               -> (ByteString -> IO ())
-               -> IO ()
-updateTopic m get set = do
-  oldTopic <- get
-  case splitOldTopic oldTopic of
-    Nothing -> B.putStrLn "channel is missing BTC tag"
-    Just (a,c) -> do
-      b <- ircTopic m
-      let new = B.concat [a,b,c]
-      if oldTopic==new
-        then B.putStrLn "topic is not changed"
-        else do set new
-                B.putStr "changed topic to: "
-                B.putStrLn new
