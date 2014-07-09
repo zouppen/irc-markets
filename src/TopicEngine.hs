@@ -1,5 +1,8 @@
 module TopicEngine where
 
+data Target { get :: IO ByteString
+            , set :: ByteString -> IO ()
+            }
 
 -- | Splits topic to pieces in which you may put the stuff inside
 splitOldTopic :: ByteString -> ByteString -> Maybe (ByteString, ByteString)
@@ -11,14 +14,14 @@ splitOldTopic tag s = case matches of
     compiled = compile pattern [anchored]
     pattern  = B.concat ["(.*",tag,").*?($| \\|.*)"]
 
--- | Updates topic with MtGox data by fetching old topic with @get@
+-- | Updates topic by fetching stuff from given da topic with @get@
 -- and writing new topic with @set@. If topic has no slot for data, do
 -- not run any HTTP action.
-updateTopic :: (Integer -> Integer -> IO Integer)
-               -> IO ByteString 
-               -> (ByteString -> IO ())
-               -> IO ()
-updateTopic m get set = do
+updateTopic :: [TopicPart]
+            -> [Target]
+            -> IO ()
+updateTopic parts targets = do
+  mapM_ get targets
   oldTopic <- get
   case splitOldTopic oldTopic of
     Nothing -> B.putStrLn "channel is missing BTC tag"
